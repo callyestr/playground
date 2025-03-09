@@ -473,10 +473,12 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
           justifyContent: 'center',
           // 중앙 영역 위에 있을 때 시각적 피드백
           opacity: isOverCenter ? 0.9 : opacity,
-          filter: isOverCenter ? 'drop-shadow(0 0 8px rgba(33, 150, 243, 0.8))' : 'none',
+          filter: isOverCenter 
+            ? 'drop-shadow(0 0 8px rgba(33, 150, 243, 0.8))' 
+            : 'drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.15))',
           touchAction: 'none', // 터치 기기에서 스크롤 방지
           '&:hover': {
-            filter: 'brightness(1.05)',
+            filter: 'brightness(1.05) drop-shadow(3px 5px 8px rgba(0, 0, 0, 0.2))',
             transform: `rotate(${rotation + 2}deg) scale(1.02)`,
             transition: 'transform 0.3s ease-out, filter 0.3s ease-out',
           },
@@ -497,6 +499,7 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
               transition: isDragging ? 'none' : 'transform 0.3s ease',
               transform: isOverCenter ? 'scale(1.05)' : 'scale(1)',
               pointerEvents: 'none', // 이미지가 드래그 이벤트를 방해하지 않도록
+              filter: 'sepia(0.1)', // 약간의 빈티지 효과 추가
             }}
           />
         )}
@@ -516,10 +519,46 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
           sx={{
             position: 'relative',
             width: '60vw',
-            bgcolor: 'background.paper',
+            bgcolor: '#FFF9FA', // 메인 배경과 동일한 화이트톤
             borderRadius: 2,
-            boxShadow: 24,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15), inset 0 0 30px rgba(255, 157, 170, 0.1)',
             p: 4,
+            backgroundImage: `
+              linear-gradient(#FFE5E9 0.1em, transparent 0.1em),
+              linear-gradient(90deg, #FFE5E9 0.1em, transparent 0.1em)
+            `,
+            backgroundSize: '1.8em 1.8em',
+            backgroundPosition: '0 0, 0 0',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='800' height='800' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E")`,
+              opacity: 0.7,
+              pointerEvents: 'none',
+              mixBlendMode: 'multiply',
+              borderRadius: 'inherit',
+            },
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `
+                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 20%),
+                radial-gradient(circle at 70% 65%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 20%),
+                radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 20%),
+                linear-gradient(45deg, rgba(0, 0, 0, 0.02) 0%, transparent 70%),
+                linear-gradient(135deg, rgba(0, 0, 0, 0.02) 0%, transparent 70%)
+              `,
+              pointerEvents: 'none',
+              borderRadius: 'inherit',
+            },
           }}
         >
           <IconButton
@@ -529,11 +568,13 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
               position: 'absolute',
               right: 8,
               top: 8,
+              color: '#FF9DAA',
+              zIndex: 1,
             }}
           >
             <CloseIcon />
           </IconButton>
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ mt: 2, position: 'relative', zIndex: 1 }}>
             {/* 모달 내용 */}
             {children}
           </Box>

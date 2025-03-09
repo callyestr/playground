@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import Draggable from 'react-draggable';
-import { Paper, Typography, Box } from '@mui/material';
+import { Typography, Box } from '@mui/material';
+import thumbnailSvg from '../assets/img_thumbnail.svg';
 
-const DraggableCard = ({ id, title, content, initialPosition, color, onDragStop }) => {
+const DraggableCard = ({ id, title, content, initialPosition, color, onDragStop, svgPath }) => {
   const [position, setPosition] = useState(initialPosition || { x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   
@@ -22,6 +23,9 @@ const DraggableCard = ({ id, title, content, initialPosition, color, onDragStop 
     }
   };
   
+  // 특정 ID(예: 1)를 가진 카드만 thumbnailSvg 사용
+  const cardImage = id === 1 ? thumbnailSvg : svgPath;
+  
   return (
     <Draggable
       position={position}
@@ -30,34 +34,46 @@ const DraggableCard = ({ id, title, content, initialPosition, color, onDragStop 
       onStop={handleStop}
       bounds="parent"
     >
-      <Paper
-        elevation={isDragging ? 8 : 3}
+      <Box
         sx={{
           position: 'absolute',
           top: '50%',
           left: '50%',
           width: '150px',
           height: '150px',
-          padding: 2,
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
           cursor: isDragging ? 'grabbing' : 'grab',
-          backgroundColor: color || '#ffffff',
-          boxShadow: isDragging 
-            ? '0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23)' 
-            : '0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23)',
-          borderRadius: '10px',
           userSelect: 'none',
-          transition: 'box-shadow 0.3s ease',
-          '&:hover': {
-            boxShadow: '0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22)',
-          },
           zIndex: isDragging ? 100 : 10,
         }}
       >
-        <Box sx={{ textAlign: 'center' }}>
+        <Box 
+          component="img"
+          src={cardImage}
+          alt={title}
+          sx={{ 
+            width: '100%',
+            height: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            zIndex: 1,
+            filter: isDragging ? 'drop-shadow(0 10px 8px rgba(0,0,0,0.3))' : 'drop-shadow(0 4px 4px rgba(0,0,0,0.2))',
+            transition: 'filter 0.3s ease',
+            '&:hover': {
+              filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.25))',
+            },
+          }}
+        />
+        <Box sx={{ 
+          textAlign: 'center', 
+          position: 'relative', 
+          zIndex: 2,
+          padding: 2
+        }}>
           <Typography variant="h6" gutterBottom fontWeight="bold">
             {title}
           </Typography>
@@ -65,7 +81,7 @@ const DraggableCard = ({ id, title, content, initialPosition, color, onDragStop 
             {content}
           </Typography>
         </Box>
-      </Paper>
+      </Box>
     </Draggable>
   );
 };

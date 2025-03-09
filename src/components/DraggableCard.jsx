@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Draggable from 'react-draggable';
 import { Typography, Box } from '@mui/material';
 import thumbnailSvg from '../assets/img_thumbnail.svg';
+import pollaroidSvg from '../assets/img_pollaroid.svg'; // 폴라로이드 SVG 추가
 
 const DraggableCard = ({ id, title, content, initialPosition, color, onDragStop, svgPath }) => {
   const [position, setPosition] = useState(initialPosition || { x: 0, y: 0 });
@@ -23,8 +24,9 @@ const DraggableCard = ({ id, title, content, initialPosition, color, onDragStop,
     }
   };
   
-  // 특정 ID(예: 1)를 가진 카드만 thumbnailSvg 사용
-  const cardImage = id === 1 ? thumbnailSvg : svgPath;
+  // ID에 따라 다른 이미지 사용
+  // ID가 1이면 thumbnailSvg, ID가 2이면 pollaroidSvg, 그 외에는 svgPath 사용
+  const cardImage = id === 1 ? thumbnailSvg : (id === 2 ? pollaroidSvg : svgPath);
   
   return (
     <Draggable

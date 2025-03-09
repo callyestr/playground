@@ -2,20 +2,68 @@ import { Box, Modal, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useState, useEffect, useRef } from 'react';
 
-const DraggableUI = ({ children, initialPosition, id, allElements, onPositionChange }) => {
+const DraggableUI = ({ children, initialPosition, id, allElements, onPositionChange, svgPath, centerImageSize, initialRotation }) => {
   // 랜덤 회전 각도 생성 (초기 렌더링 시 한 번만 실행)
-  const initialRotation = useRef(Math.floor(Math.random() * 30) - 15);
-  const [rotation, setRotation] = useState(initialRotation.current);
-  const [position, setPosition] = useState(initialPosition);
+  const defaultRotation = useRef(initialRotation || Math.floor(Math.random() * 60) - 30); // 더 큰 범위의 회전 각도 (-30도 ~ 30도)
+  const [rotation, setRotation] = useState(defaultRotation.current);
+  
+  // UI 요소의 크기
+  const uiElementWidth = 250;
+  const uiElementHeight = 300;
+  
+  // 초기 위치 계산 (가장자리에서 시작)
+  const getInitialEdgePosition = () => {
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    // 가장자리 영역 정의 (화면을 4개 구역으로 나눔)
+    const edgeRegions = [
+      // 상단 영역
+      { 
+        x: Math.random() * (screenWidth - 300) + 150, 
+        y: 80 
+      },
+      // 우측 영역
+      { 
+        x: screenWidth - uiElementWidth - 80, 
+        y: Math.random() * (screenHeight - 400) + 200 
+      },
+      // 하단 영역
+      { 
+        x: Math.random() * (screenWidth - 300) + 150, 
+        y: screenHeight - uiElementHeight - 80 
+      },
+      // 좌측 영역
+      { 
+        x: 80, 
+        y: Math.random() * (screenHeight - 400) + 200 
+      }
+    ];
+    
+    // ID에 따라 다른 가장자리 영역 선택 (균등하게 분배)
+    const regionIndex = id % 4;
+    return edgeRegions[regionIndex];
+  };
+  
+  const [position, setPosition] = useState(getInitialEdgePosition());
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showModal, setShowModal] = useState(false);
   const [isAnimating, setIsAnimating] = useState(true);
+  const [isOverCenter, setIsOverCenter] = useState(false);
+  const elementRef = useRef(null);
+  const [zIndex, setZIndex] = useState(1000); // z-index 상태 추가
+  const [opacity, setOpacity] = useState(0); // 초기에는 투명하게 시작
+  const [rotateAnimation, setRotateAnimation] = useState(false); // 회전 애니메이션 상태
 
   // UI 요소의 크기
-  const uiElementWidth = 150;
-  const uiElementHeight = 60;
   const minOverlapDistance = 30; // 최소 겹침 거리
+  
+  // 중앙 이미지 영역 정보
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
+  const centerImageWidth = centerImageSize?.width || 500;
+  const centerImageHeight = centerImageSize?.height || 500;
 
   // 겹침 검사 함수
   const checkOverlap = (newPosition) => {
@@ -38,6 +86,11 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
 
       // 두 요소가 겹치는지 확인
       if (overlapX > 0 && overlapY > 0) {
+        // 드래그 중일 때는 겹침 허용 (위에 표시됨)
+        if (isDragging) {
+          continue;
+        }
+        
         // 겹침이 너무 많은 경우 (80% 이상) 이동 불가
         if (overlapX > uiElementWidth * 0.8 && overlapY > uiElementHeight * 0.8) {
           return false;
@@ -57,11 +110,6 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
 
   // 중앙 이미지 영역 체크
   const checkCenterImageCollision = (newPosition) => {
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    const centerImageWidth = 500; // 중앙 이미지의 너비
-    const centerImageHeight = 500; // 중앙 이미지의 높이
-
     const centerImageBounds = {
       left: centerX - centerImageWidth / 2,
       right: centerX + centerImageWidth / 2,
@@ -79,72 +127,134 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
 
   // 초기 애니메이션 효과
   useEffect(() => {
-    // 약간의 랜덤 지연 시간 추가 (0~500ms)
-    const animationDelay = Math.random() * 500;
+    // ID에 따라 다른 지연 시간 설정 (0~800ms)
+    const staggerDelay = id * 120;
+    const animationDelay = Math.random() * 200 + staggerDelay;
     
+    // 초기에 투명도 0에서 시작하여 서서히 나타나도록
+    setTimeout(() => {
+      setOpacity(0.5);
+      setTimeout(() => {
+        setOpacity(1);
+      }, 300);
+    }, staggerDelay);
+    
+    // 초기 회전 각도 설정 (약간 더 회전된 상태에서 시작)
+    const entryRotation = defaultRotation.current + (Math.random() > 0.5 ? 10 : -10);
+    setRotation(entryRotation);
+    
+    // 애니메이션 종료 시간 설정
     setTimeout(() => {
       setIsAnimating(false);
-    }, 800 + animationDelay);
+      
+      // 애니메이션 종료 후 원래 회전 각도로 돌아가는 효과
+      setRotation(defaultRotation.current);
+      setRotateAnimation(true);
+      setTimeout(() => {
+        setRotateAnimation(false);
+      }, 400);
+    }, 1000 + animationDelay);
     
     // 초기 위치에서 겹치지 않는 랜덤 위치 찾기
     const findNonOverlappingPosition = () => {
-      // 최대 시도 횟수 제한
-      const maxAttempts = 20;
-      let attempts = 0;
+      // 화면 크기 계산
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
       
-      // 초기 위치 저장
-      const originalPosition = { ...initialPosition };
+      // 화면 중앙
+      const centerX = screenWidth / 2;
+      const centerY = screenHeight / 2;
       
-      while (attempts < maxAttempts) {
-        // 랜덤 오프셋 생성 (더 넓은 범위로 설정)
-        const randomOffsetX = Math.random() * 100 - 50;
-        const randomOffsetY = Math.random() * 100 - 50;
-        
-        const newPosition = {
-          x: originalPosition.x + randomOffsetX,
-          y: originalPosition.y + randomOffsetY
-        };
-        
-        // 화면 경계 체크
-        if (
-          newPosition.x < 0 ||
-          newPosition.y < 0 ||
-          newPosition.x + uiElementWidth > window.innerWidth ||
-          newPosition.y + uiElementHeight > window.innerHeight
-        ) {
-          attempts++;
-          continue;
+      // 가장자리 영역 정의 (화면을 4개 구역으로 나눔)
+      const edgeRegions = [
+        // 상단 영역
+        { 
+          x: Math.random() * (screenWidth - 300) + 150, 
+          y: Math.random() * 120 + 100 
+        },
+        // 우측 영역
+        { 
+          x: screenWidth - Math.random() * 120 - uiElementWidth - 100, 
+          y: Math.random() * (screenHeight - 400) + 200 
+        },
+        // 하단 영역
+        { 
+          x: Math.random() * (screenWidth - 300) + 150, 
+          y: screenHeight - Math.random() * 120 - uiElementHeight - 100 
+        },
+        // 좌측 영역
+        { 
+          x: Math.random() * 120 + 100, 
+          y: Math.random() * (screenHeight - 400) + 200 
         }
-        
-        // 중앙 이미지와 충돌 체크
-        if (checkCenterImageCollision(newPosition)) {
-          attempts++;
-          continue;
-        }
-        
-        // 겹침 검사
-        if (checkOverlap(newPosition)) {
-          // 겹치지 않는 위치 찾음
-          setPosition(newPosition);
-          // 위치 변경 알림
-          onPositionChange(id, newPosition);
-          return;
-        }
-        
-        attempts++;
+      ];
+      
+      // ID에 따라 다른 가장자리 영역 선택 (균등하게 분배)
+      const regionIndex = id % 4;
+      let newPosition = edgeRegions[regionIndex];
+      
+      // 추가 랜덤성 부여 (더 작은 범위로 조정)
+      const jitter = 40; // 위치 변동 범위 축소
+      newPosition.x += Math.random() * jitter * 2 - jitter;
+      newPosition.y += Math.random() * jitter * 2 - jitter;
+      
+      // 화면 경계 체크 및 조정
+      if (newPosition.x < 80) newPosition.x = 80;
+      if (newPosition.y < 80) newPosition.y = 80;
+      if (newPosition.x + uiElementWidth > screenWidth - 80) {
+        newPosition.x = screenWidth - uiElementWidth - 80;
+      }
+      if (newPosition.y + uiElementHeight > screenHeight - 80) {
+        newPosition.y = screenHeight - uiElementHeight - 80;
       }
       
-      // 모든 시도 후에도 겹치지 않는 위치를 찾지 못한 경우 원래 위치 사용
-      setPosition(originalPosition);
+      // 중앙 이미지와 충돌 체크
+      if (checkCenterImageCollision(newPosition)) {
+        // 중앙 이미지와 충돌하면 가장자리로 더 밀어냄
+        const angle = Math.atan2(newPosition.y - centerY, newPosition.x - centerX);
+        const pushDistance = 100;
+        
+        newPosition.x += Math.cos(angle) * pushDistance;
+        newPosition.y += Math.sin(angle) * pushDistance;
+        
+        // 화면 경계 재확인
+        if (newPosition.x < 80) newPosition.x = 80;
+        if (newPosition.y < 80) newPosition.y = 80;
+        if (newPosition.x + uiElementWidth > screenWidth - 80) {
+          newPosition.x = screenWidth - uiElementWidth - 80;
+        }
+        if (newPosition.y + uiElementHeight > screenHeight - 80) {
+          newPosition.y = screenHeight - uiElementHeight - 80;
+        }
+      }
+      
+      // 위치 설정 및 알림
+      setTimeout(() => {
+        setPosition(newPosition);
+        onPositionChange(id, newPosition);
+      }, staggerDelay);
     };
     
     // 겹치지 않는 위치 찾기 실행
     findNonOverlappingPosition();
     
+    // 주기적으로 약간의 회전 효과 추가 (살아있는 느낌)
+    const rotationInterval = setInterval(() => {
+      if (!isDragging && !isOverCenter) {
+        const smallRotation = Math.random() * 4 - 2; // -2도 ~ 2도 (더 작은 범위로 조정)
+        setRotation(prev => prev + smallRotation);
+      }
+    }, 8000 + Math.random() * 4000); // 8~12초마다 (더 긴 간격으로 조정)
+    
+    return () => {
+      clearInterval(rotationInterval);
+    };
+    
   }, []);
 
-  // 드래그 시작
+  // 드래그 시작 (마우스)
   const handleMouseDown = (e) => {
+    e.preventDefault();
     setIsDragging(true);
     setDragOffset({
       x: e.clientX - position.x,
@@ -153,9 +263,30 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
     
     // 드래그 시작할 때 회전 각도를 0으로 설정하여 사용성 향상
     setRotation(0);
+    
+    // 드래그 시작할 때 z-index 증가시켜 다른 요소들 위에 표시
+    setZIndex(2000);
   };
 
-  // 드래그 중
+  // 드래그 시작 (터치)
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setIsDragging(true);
+      setDragOffset({
+        x: touch.clientX - position.x,
+        y: touch.clientY - position.y,
+      });
+      
+      // 드래그 시작할 때 회전 각도를 0으로 설정
+      setRotation(0);
+      
+      // 드래그 시작할 때 z-index 증가시켜 다른 요소들 위에 표시
+      setZIndex(2000);
+    }
+  };
+
+  // 드래그 중 (마우스)
   const handleMouseMove = (e) => {
     if (!isDragging) return;
     
@@ -164,6 +295,24 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
       y: e.clientY - dragOffset.y,
     };
 
+    updatePosition(newPosition);
+  };
+
+  // 드래그 중 (터치)
+  const handleTouchMove = (e) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    
+    const touch = e.touches[0];
+    const newPosition = {
+      x: touch.clientX - dragOffset.x,
+      y: touch.clientY - dragOffset.y,
+    };
+
+    updatePosition(newPosition);
+  };
+
+  // 위치 업데이트 공통 함수
+  const updatePosition = (newPosition) => {
     // 화면 경계 체크
     if (
       newPosition.x < 0 ||
@@ -174,32 +323,84 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
       return;
     }
 
-    // 중앙 이미지와 충돌 체크
-    const isOverCenter = checkCenterImageCollision(newPosition);
+    // 중앙 이미지 영역과의 충돌 체크
+    const isColliding = checkCenterImageCollision(newPosition);
+    setIsOverCenter(isColliding);
     
-    // 겹침 검사를 통과한 경우에만 위치 업데이트
-    if (checkOverlap(newPosition)) {
-      setPosition(newPosition);
-      onPositionChange(id, newPosition);
-    }
+    // 드래그 중에는 겹침 검사를 완화하여 자유롭게 이동 가능
+    setPosition(newPosition);
+    onPositionChange(id, newPosition);
   };
 
-  // 드래그 종료
+  // 드래그 종료 (마우스)
   const handleMouseUp = () => {
+    if (!isDragging) return;
     setIsDragging(false);
     
+    finishDrag();
+  };
+
+  // 드래그 종료 (터치)
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    finishDrag();
+  };
+
+  // 드래그 종료 공통 함수
+  const finishDrag = () => {
     // 드래그 종료 시 중앙 영역에 있는지 확인하고 모달 표시
-    if (checkCenterImageCollision(position)) {
-      setShowModal(true);
+    if (isOverCenter) {
+      // 중앙 이미지 위에 있을 때 회전 각도를 0으로 설정
+      setRotation(0);
+      
+      // 중앙 이미지 위에 있을 때 약간의 애니메이션 효과 추가
+      const targetX = centerImageSize?.centerX || centerX;
+      const targetY = centerImageSize?.centerY || centerY;
+      
+      // 중앙 이미지 위에 자연스럽게 위치하도록 조정
+      const adjustedX = targetX - uiElementWidth / 2;
+      const adjustedY = targetY - uiElementHeight / 2;
+      
+      // 현재 위치에서 약간만 조정
+      const newX = position.x + (adjustedX - position.x) * 0.2;
+      const newY = position.y + (adjustedY - position.y) * 0.2;
+      
+      setPosition({ x: newX, y: newY });
+      onPositionChange(id, { x: newX, y: newY });
+      
+      // 약간의 지연 후 모달 표시
+      setTimeout(() => {
+        setShowModal(true);
+      }, 200);
     } else {
-      // 드래그 종료 시 약간의 랜덤 회전 각도 적용 (중앙 영역이 아닌 경우에만)
-      setRotation(Math.floor(Math.random() * 20) - 10);
+      // 드래그 종료 시 랜덤 회전 각도 적용 (중앙 영역이 아닌 경우에만)
+      const randomRotation = Math.floor(Math.random() * 40) - 20; // -20도 ~ 20도
+      setRotation(randomRotation);
+      
+      // 회전 애니메이션 효과 추가
+      setRotateAnimation(true);
+      setTimeout(() => {
+        setRotateAnimation(false);
+      }, 500);
     }
+    
+    // 중앙 영역 상태 초기화
+    setIsOverCenter(false);
+    
+    // 드래그 종료 시 z-index 원복
+    setTimeout(() => {
+      setZIndex(1000);
+    }, 300);
   };
 
   // 클릭 이벤트 처리
   const handleClick = () => {
-    setShowModal(true);
+    // 중앙 이미지 영역에 있을 때만 모달 표시
+    if (checkCenterImageCollision(position)) {
+      setShowModal(true);
+    }
   };
 
   // 마우스 이벤트 리스너 등록/제거
@@ -207,18 +408,46 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleTouchEnd);
+      window.addEventListener('touchcancel', handleTouchEnd);
     }
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [isDragging]);
+
+  // 터치 이벤트 기본 동작 방지
+  useEffect(() => {
+    const preventDefaultTouch = (e) => {
+      if (isDragging) {
+        e.preventDefault();
+      }
+    };
+
+    const element = elementRef.current;
+    if (element) {
+      element.addEventListener('touchmove', preventDefaultTouch, { passive: false });
+    }
+
+    return () => {
+      if (element) {
+        element.removeEventListener('touchmove', preventDefaultTouch);
+      }
     };
   }, [isDragging]);
 
   return (
     <>
       <Box
+        ref={elementRef}
         onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
         onClick={handleClick}
         sx={{
           position: 'fixed',
@@ -226,26 +455,51 @@ const DraggableUI = ({ children, initialPosition, id, allElements, onPositionCha
           top: position.y,
           cursor: isDragging ? 'grabbing' : 'grab',
           userSelect: 'none',
-          zIndex: isDragging ? 1001 : 1000,
+          zIndex: isDragging ? zIndex + id : zIndex,
           outline: 'none',
           transform: `rotate(${rotation}deg)`,
           transformOrigin: 'center center',
           transition: isAnimating 
-            ? 'transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)' 
-            : isDragging 
-              ? 'none' 
-              : 'transform 0.3s ease-out, border 0.2s, box-shadow 0.2s',
-          '&:focus': {
-            outline: 'none'
+            ? 'transform 1s cubic-bezier(0.25, 0.1, 0.25, 1), left 1s cubic-bezier(0.25, 0.1, 0.25, 1), top 1s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 0.6s ease-in' 
+            : rotateAnimation
+              ? 'transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)'
+              : isDragging 
+                ? 'none' 
+                : 'transform 0.3s ease-out, left 0.3s ease-out, top 0.3s ease-out',
+          width: 'auto',
+          height: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          // 중앙 영역 위에 있을 때 시각적 피드백
+          opacity: isOverCenter ? 0.9 : opacity,
+          filter: isOverCenter ? 'drop-shadow(0 0 8px rgba(33, 150, 243, 0.8))' : 'none',
+          touchAction: 'none', // 터치 기기에서 스크롤 방지
+          '&:hover': {
+            filter: 'brightness(1.05)',
+            transform: `rotate(${rotation + 2}deg) scale(1.02)`,
+            transition: 'transform 0.3s ease-out, filter 0.3s ease-out',
           },
-          // 중앙 영역에 있을 때 시각적 표시 추가
-          border: checkCenterImageCollision(position) ? '2px solid #2196f3' : 'none',
-          boxShadow: checkCenterImageCollision(position) 
-            ? '0 0 10px rgba(33, 150, 243, 0.5)' 
-            : '0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23)',
         }}
       >
-        {children}
+        {/* SVG 이미지만 표시 */}
+        {svgPath && (
+          <Box
+            component="img"
+            src={svgPath}
+            alt={`UI Element ${id}`}
+            sx={{
+              width: 'auto',
+              height: 'auto',
+              maxWidth: '250px',
+              maxHeight: '250px',
+              objectFit: 'contain',
+              transition: isDragging ? 'none' : 'transform 0.3s ease',
+              transform: isOverCenter ? 'scale(1.05)' : 'scale(1)',
+              pointerEvents: 'none', // 이미지가 드래그 이벤트를 방해하지 않도록
+            }}
+          />
+        )}
       </Box>
 
       <Modal

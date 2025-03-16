@@ -117,8 +117,7 @@ const MainLayout = () => {
       imgCircle,
       img1080x608,
       img1080x1080,
-      img1080x1350,
-      imgThumbnail
+      img1080x1350
     ];
 
     // 중앙 위치 설정 (모든 요소가 중앙에서 시작)
